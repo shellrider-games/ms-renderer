@@ -1,12 +1,12 @@
 import "listUtil"
 
 gfx.clear color.clear, 480, 320
-gfx.scale = 2
+gfx.scale = 3
 gfx.fillRect 0,0, gfx.width, gfx.height, color.clear
 
 origin = [0,0]
 unitScale = 64
-offset  = [gfx.width*0.5/unitScale, gfx.height*0.5/unitScale]
+offset  = [gfx.width/3/unitScale, gfx.height/3/unitScale]
 
 drawPixel = function(position, color)
     gfx.setPixel unitScale * (position[0] + offset[0]),unitScale * ( position[1] + offset[1]), color
@@ -36,23 +36,28 @@ signedAreaForBarycentric = function(triangle)
     return (triangle[1][0]-triangle[0][0]) * (triangle[2][1] - triangle[0][1]) - (triangle[1][1] - triangle[0][1]) * (triangle[2][0] - triangle[0][0])
 end function
 
-barycentricCoordinates = function(point, triangle)
-    area = signedAreaForBarycentric(triangle)
+barycentricCoordinatesWithPrecalculatedArea = function(point, triangle, area)
     alpha = ((triangle[1][0] - point[0])*(triangle[2][1] - point[1]) - (triangle[1][1] - point[1]) * (triangle[2][0] - point[0])) / area
     beta = ((triangle[2][0] - point[0])*(triangle[0][1] - point[1]) - (triangle[2][1] - point[1]) * (triangle[0][0] - point[0])) / area
     gamma = 1 - alpha - beta
     return [alpha, beta, gamma]
 end function
 
-drawTriangle = function(triangle, color)
+barycentricCoordinates = function(point, triangle)
+    area = signedAreaForBarycentric(triangle)
+    return barycentricCoordinatesWithPrecalculatedArea(point,triangle, area)
+end function
+
+drawTriangle = function(triangle)
     aabb = axisAlignedBoundingBox(triangle)
+    area = signedAreaForBarycentric(triangle)
     for y in range(aabb[2], aabb[3], 1/unitScale)
         for x in range(aabb[0], aabb[1], 1/unitScale)
-            baryCoords = barycentricCoordinates([x,y], triangle)
-            if(baryCoords[0] >= 0 and baryCoords[1] >= 0 and baryCoords[2] >= 0) then drawPixel [x,y], color
+            baryCoords = barycentricCoordinatesWithPrecalculatedArea([x,y], triangle, area)
+            if(baryCoords[0] >= 0 and baryCoords[1] >= 0 and baryCoords[2] >= 0) then drawPixel [x,y], color.rgb(baryCoords[0] * 255,baryCoords[1] * 255,baryCoords[2] * 255)
         end for
     end for
 end function
 
 triangle = [[-1,-0.42], [0,1], [1,-0.42]]
-drawTriangle triangle, color.fuchsia
+drawTriangle triangle
