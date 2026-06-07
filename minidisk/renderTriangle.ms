@@ -1,11 +1,17 @@
+import "listUtil"
+
 clear
 gfx.clear color.clear, 480, 360
-gfx.scale = 3
+gfx.scale = 2
 gfx.fillRect 0,0, gfx.width, gfx.height, color.clear
 
 origin = [0,0]
 unitScale = 64
-offset  = [(gfx.width/unitScale)*1/3, (gfx.height/unitScale)*1/3]
+offset  = [(gfx.width/unitScale)*1/2, (gfx.height/unitScale)*1/2]
+
+maxDepth = 10
+zBuffer = list.init(gfx.width * gfx.height, maxDepth)
+
 
 drawPixel = function(position, color)
     gfx.setPixel unitScale * (position[0] + offset[0]),unitScale * ( position[1] + offset[1]), color
@@ -39,7 +45,7 @@ edge = function(ax, ay, bx, by, px, py)
     return (px - ax) * (by - ay) - (py - ay) * (bx - ax)
 end function
 
-edgeTriangleFill = function(triangle)
+edgeTriangleFill = function(triangle, col)
     x0 = triangle[0][0]
     y0 = triangle[0][1]
     x1 = triangle[1][0]
@@ -77,10 +83,20 @@ edgeTriangleFill = function(triangle)
         e2 = e2_row
         for x in range(xmin, xmax, step)
             if e0 <= 0 and e1 <= 0 and e2 <= 0 then
-                alpha = -e0*reciprocalArea
-                beta = -e1*reciprocalArea
-                gamma = -e2*reciprocalArea
-                drawPixel [x, y], color.rgb(alpha*255, beta*255,gamma*255)
+                gamma = -e0*reciprocalArea
+                alpha = -e1*reciprocalArea
+                beta = -e2*reciprocalArea
+                z = alpha * triangle[0][2] + beta * triangle[1][2] + gamma * triangle[2][2]
+                screen_x = floor(unitScale * (x + offset[0]))
+                screen_y = floor(unitScale * (y + offset[1]))
+                if zBuffer[screen_y*gfx.width+screen_x] >= z then
+                    zBuffer[screen_y*gfx.width+screen_x] = z
+                    if col then
+                        gfx.setPixel screen_x,screen_y, col
+                    else
+                        gfx.setPixel screen_x,screen_y, color.rgb(alpha*255, beta*255,gamma*255)
+                    end if
+                end if
             end if
             e0 = e0 + e0_dx * step
             e1 = e1 + e1_dx * step
@@ -93,6 +109,8 @@ edgeTriangleFill = function(triangle)
     end for
 end function
 
-triangle = [[-1,-0.42], [1,-0.42], [0,1]]
+triangle = [[-1,-0.42, 0], [1,-0.42,0], [0,1, 0]]
+triangle2 = [[-0.8, -0.3, -1], [0.8,-0.3, 1], [0,0.8, 0]]
 
-edgeTriangleFill triangle
+edgeTriangleFill triangle2, color.blue
+edgeTriangleFill triangle, color.yellow
