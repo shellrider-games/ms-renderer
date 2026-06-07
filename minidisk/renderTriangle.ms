@@ -1,11 +1,11 @@
 clear
-gfx.clear color.clear, 240, 160
-gfx.scale = 4
+gfx.clear color.clear, 480, 360
+gfx.scale = 3
 gfx.fillRect 0,0, gfx.width, gfx.height, color.clear
 
 origin = [0,0]
-unitScale = 32
-offset  = [gfx.width/4/unitScale, gfx.height/4/unitScale]
+unitScale = 64
+offset  = [(gfx.width/unitScale)*1/3, (gfx.height/unitScale)*1/3]
 
 drawPixel = function(position, color)
     gfx.setPixel unitScale * (position[0] + offset[0]),unitScale * ( position[1] + offset[1]), color
@@ -35,34 +35,11 @@ signedAreaForBarycentric = function(triangle)
     return (triangle[1][0]-triangle[0][0]) * (triangle[2][1] - triangle[0][1]) - (triangle[1][1] - triangle[0][1]) * (triangle[2][0] - triangle[0][0])
 end function
 
-barycentricCoordinatesWithPrecalculatedArea = function(point, triangle, area)
-    alpha = ((triangle[1][0] - point[0])*(triangle[2][1] - point[1]) - (triangle[1][1] - point[1]) * (triangle[2][0] - point[0])) / area
-    beta = ((triangle[2][0] - point[0])*(triangle[0][1] - point[1]) - (triangle[2][1] - point[1]) * (triangle[0][0] - point[0])) / area
-    gamma = 1 - alpha - beta
-    return [alpha, beta, gamma]
-end function
-
-barycentricCoordinates = function(point, triangle)
-    area = signedAreaForBarycentric(triangle)
-    return barycentricCoordinatesWithPrecalculatedArea(point,triangle, area)
-end function
-
-drawTriangle = function(triangle)
-    aabb = axisAlignedBoundingBox(triangle)
-    area = signedAreaForBarycentric(triangle)
-    for y in range(aabb[2], aabb[3], 1/unitScale)
-        for x in range(aabb[0], aabb[1], 1/unitScale)
-            baryCoords = barycentricCoordinatesWithPrecalculatedArea([x,y], triangle, area)
-            if(baryCoords[0] >= 0 and baryCoords[1] >= 0 and baryCoords[2] >= 0) then drawPixel [x,y], color.rgb(baryCoords[0] * 255,baryCoords[1] * 255,baryCoords[2] * 255)
-        end for
-    end for
-end function
-
 edge = function(ax, ay, bx, by, px, py)
     return (px - ax) * (by - ay) - (py - ay) * (bx - ax)
 end function
 
-edgeTriangleFill = function(triangle, color)
+edgeTriangleFill = function(triangle)
     x0 = triangle[0][0]
     y0 = triangle[0][1]
     x1 = triangle[1][0]
@@ -71,6 +48,8 @@ edgeTriangleFill = function(triangle, color)
     y2 = triangle[2][1]
 
     aabb = axisAlignedBoundingBox(triangle)
+    area = signedAreaForBarycentric(triangle)
+    reciprocalArea = 1/area
 
     xmin = aabb[0]
     xmax = aabb[1]
@@ -97,8 +76,11 @@ edgeTriangleFill = function(triangle, color)
         e1 = e1_row
         e2 = e2_row
         for x in range(xmin, xmax, step)
-            if e0 >= 0 and e1 >= 0 and e2 >= 0 then
-                gfx.setPixel unitScale * (x + offset[0]),unitScale * (y + offset[1]), color
+            if e0 <= 0 and e1 <= 0 and e2 <= 0 then
+                alpha = -e0*reciprocalArea
+                beta = -e1*reciprocalArea
+                gamma = -e2*reciprocalArea
+                drawPixel [x, y], color.rgb(alpha*255, beta*255,gamma*255)
             end if
             e0 = e0 + e0_dx * step
             e1 = e1 + e1_dx * step
@@ -111,13 +93,6 @@ edgeTriangleFill = function(triangle, color)
     end for
 end function
 
-triangle = [[-1,-0.42], [0,1], [1,-0.42]]
+triangle = [[-1,-0.42], [1,-0.42], [0,1]]
 
-triangle2 = [[-2, 0], [-2,1], [-1, 0]]
-
-t0 = time
-edgeTriangleFill triangle, color.fuchsia
-edgeTriangleFill triangle2, color.lime
-t1 = time
-
-print "Rendered in " + (t1 - t0) + " seconds."
+edgeTriangleFill triangle
