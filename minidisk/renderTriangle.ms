@@ -147,8 +147,8 @@ renderTriangle = function(triangle, col)
     if projected then edgeTriangleFill(projected, col)    
 end function
 
-triangle = [[-1, 0, 1], [1,0,1], [1,1, 1]]
-triangle2 = [[0, -0.3, 0.5], [1, 0, 3], [0,1, 0.5]]
+triangle = [[-1, -0.3, 2], [1,-0.3,1], [1,0.7, 1]]
+triangle2 = [[0, -0.5, 0.5], [1, -0.50, 3], [0,0.5, 0.5]]
 
 renderTriangle triangle2
 renderTriangle triangle
