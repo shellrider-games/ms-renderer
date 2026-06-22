@@ -12,10 +12,28 @@ offset  = [(gfx.width/unitScale)*1/2, (gfx.height/unitScale)*1/2]
 maxDepth = 10
 zBuffer = list.init(gfx.width * gfx.height, maxDepth)
 
-
 drawPixel = function(position, color)
     gfx.setPixel unitScale * (position[0] + offset[0]),unitScale * ( position[1] + offset[1]), color
 end function
+
+interpolate3 = function(alpha, beta, gamma, a, b, c)
+    return [
+        alpha * a[0] + beta * b[0] + gamma * c[0],
+        alpha * a[1] + beta * b[1] + gamma * c[1],
+        alpha * a[2] + beta * b[2] + gamma * c[2]]
+end function
+
+projectVertex = function(vertex)
+    x = vertex[0]
+    y = vertex[1]
+    z = vertex[2]
+
+    near = 0.1
+    f = 1
+    if z <= near then return null
+    return [f*x/z, f*y/z, z]
+end function
+
 
 drawTrianglepoints = function(triangle, color)
     for point in triangle
@@ -55,6 +73,7 @@ edgeTriangleFill = function(triangle, col)
 
     aabb = axisAlignedBoundingBox(triangle)
     area = signedAreaForBarycentric(triangle)
+    if area == 0 then return
     reciprocalArea = 1/area
 
     xmin = aabb[0]
@@ -89,12 +108,17 @@ edgeTriangleFill = function(triangle, col)
                 z = alpha * triangle[0][2] + beta * triangle[1][2] + gamma * triangle[2][2]
                 screen_x = floor(unitScale * (x + offset[0]))
                 screen_y = floor(unitScale * (y + offset[1]))
+
+                if screen_x < 0 or screen_x > gfx.width then continue
+                if screen_y < 0 or screen_y > gfx.height then continue
+
                 if zBuffer[screen_y*gfx.width+screen_x] >= z then
                     zBuffer[screen_y*gfx.width+screen_x] = z
                     if col then
                         gfx.setPixel screen_x,screen_y, col
                     else
-                        gfx.setPixel screen_x,screen_y, color.rgb(alpha*255, beta*255,gamma*255)
+                        rgb = interpolate3(alpha, beta, gamma, [255,0,0], [0,255,0], [0,0,255])
+                        gfx.setPixel screen_x,screen_y, color.rgb(rgb[0], rgb[1], rgb[2])
                     end if
                 end if
             end if
@@ -109,8 +133,22 @@ edgeTriangleFill = function(triangle, col)
     end for
 end function
 
-triangle = [[-1,-0.42, 0], [1,-0.42,0], [0,1, 0]]
-triangle2 = [[-0.8, -0.3, -1], [0.8,-0.3, 1], [0,0.8, 0]]
+projectTriangle = function(triangle)
+    p0 = projectVertex(triangle[0])
+    p1 = projectVertex(triangle[1])
+    p2 = projectVertex(triangle[2])
 
-edgeTriangleFill triangle2, color.blue
-edgeTriangleFill triangle, color.yellow
+    if p0 and p1 and p2 then return [p0, p1, p2]
+    return null
+end function
+
+renderTriangle = function(triangle, col)
+    projected = projectTriangle(triangle)
+    if projected then edgeTriangleFill(projected, col)    
+end function
+
+triangle = [[-1, 0, 1], [1,0,1], [1,1, 1]]
+triangle2 = [[0, -0.3, 0.5], [1, 0, 3], [0,1, 0.5]]
+
+renderTriangle triangle2
+renderTriangle triangle
