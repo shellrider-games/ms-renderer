@@ -1,13 +1,11 @@
 import "listUtil"
 
 clear
-gfx.clear color.clear, 480, 360
-gfx.scale = 2
 gfx.fillRect 0,0, gfx.width, gfx.height, color.clear
 
 origin = [0,0]
-unitScale = 64
-offset  = [(gfx.width/unitScale)*1/2, (gfx.height/unitScale)*1/2]
+unitScale = 32
+offset  = [(gfx.width/unitScale)*0.5, (gfx.height/unitScale)*0.5]
 
 maxDepth = 10
 zBuffer = list.init(gfx.width * gfx.height, maxDepth)
@@ -29,7 +27,7 @@ projectVertex = function(vertex)
     z = vertex[2]
 
     near = 0.1
-    f = 1
+    f = 4
     if z <= near then return null
     return [f*x/z, f*y/z, z]
 end function
@@ -147,8 +145,8 @@ renderTriangle = function(triangle, col)
     if projected then edgeTriangleFill(projected, col)    
 end function
 
-triangle = [[-1, -0.3, 2], [1,-0.3,1], [1,0.7, 1]]
-triangle2 = [[0, -0.5, 0.5], [1, -0.50, 3], [0,0.5, 0.5]]
+triangle = [[-0.5, -0.5, 1], [0.5,-0.5,1], [0.5, 0.5 , 1]]
+triangle2 = [[-0.5, -0.5, 1], [0.5, 0.5, 1], [-0.5, 0.5, 1]]
 
 renderTriangle triangle2
 renderTriangle triangle
