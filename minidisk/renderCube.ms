@@ -6,12 +6,17 @@ gfx.fillRect 0,0, gfx.width, gfx.height, color.clear
 origin = [0,0]
 unitScale = 32
 offset  = [(gfx.width/unitScale)*0.5, (gfx.height/unitScale)*0.5]
-
 maxDepth = 10
+xScale = gfx.width/gfx.height
 zBuffer = list.init(gfx.width * gfx.height, maxDepth)
 
 textureCache = null
 cachedTexturePath = null
+
+sunDirection = [1,-1, 0.3]
+sunLen = sqrt(sunDirection[0] * sunDirection[0] + sunDirection[1] * sunDirection[1] + sunDirection[2] * sunDirection[2])
+sunDirection = [sunDirection[0]/sunLen, sunDirection[1]/sunLen, sunDirection[2]/sunLen]
+ambient = [0.4, 0.4, 0.4, 0]
 
 
 drawPixel = function(position, color)
@@ -37,6 +42,29 @@ interpolateUV = function(alpha, beta, gamma, a, b, c)
         vi/wi]
 end function
 
+v3cross = function(v1, v2)
+    return [
+        v1[1]*v2[2]-v1[2]*v2[1],
+        v1[2]*v2[0]-v1[0]*v2[2],
+        v1[0]*v2[1]-v1[1]*v2[0]]
+end function
+
+v3minus = function(v1, v2)
+    return[v1[0]-v2[0],v1[1]-v2[1],v1[2]-v2[2]]
+end function
+
+v3len = function(v)
+    return sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2])
+end function
+
+calculateNormal = function(triangle)
+    v1 = v3minus (triangle[1], triangle[0])
+    v2 = v3minus (triangle[2], triangle[0])
+    cross = v3cross(v1, v2)
+    normLen = v3len(cross)
+    norm = [cross[0]/normLen, cross[1]/normLen, cross[2]/normLen]
+    return norm
+end function
 
 sampleChecker = function(u, v)
     iu = floor(u * 8)
@@ -66,9 +94,9 @@ projectVertex = function(vertex)
     v = vertex[4]
 
     near = 0.1
-    f = 4
+    f = 6
     if z <= near then return null
-    return [f*x/z, f*y/z, z, u, v]
+    return [(f*x*xScale)/z, (f*y)/z, z, u, v]
 end function
 
 
@@ -100,7 +128,7 @@ edge = function(ax, ay, bx, by, px, py)
     return (px - ax) * (by - ay) - (py - ay) * (bx - ax)
 end function
 
-edgeTriangleFill = function(triangle, col)
+edgeTriangleFill = function(triangle, normal, col)
     x0 = triangle[0][0]
     y0 = triangle[0][1]
     x1 = triangle[1][0]
@@ -152,11 +180,15 @@ edgeTriangleFill = function(triangle, col)
                 if zBuffer[screen_y*gfx.width+screen_x] >= z then
                     zBuffer[screen_y*gfx.width+screen_x] = z
                     if col then
-                        gfx.setPixel screen_x,screen_y, col
+                        lambert = [0,normal.dot(sunDirection)].max
+                        colList = color.toList(col)
+                        gfx.setPixel screen_x,screen_y, color.rgb(colList[0]*(lambert+ambient[0]), colList[1]*(lambert+ambient[1]), colList[2]*(lambert+ambient[2]))
                     else
                         uv = interpolateUV(alpha, beta, gamma, triangle[0], triangle[1], triangle[2])
                         renderColor = sampleTexture(uv[0], uv[1], "textures/uvChecker.png")
-                        gfx.setPixel screen_x,screen_y, renderColor
+                        lambert = [0,normal.dot(sunDirection)].max
+                        colList = color.toList(renderColor)
+                        gfx.setPixel screen_x,screen_y, color.rgb(colList[0]*(lambert+ambient[0]), colList[1]*(lambert+ambient[1]), colList[2]*(lambert+ambient[2]))
                     end if
                 end if
             end if
@@ -182,11 +214,82 @@ end function
 
 renderTriangle = function(triangle, col)
     projected = projectTriangle(triangle)
-    if projected then edgeTriangleFill(projected, col)    
+    normal = calculateNormal(triangle)
+    if projected then edgeTriangleFill(projected, normal, col)    
 end function
 
-triangle = [[-0.5, -0.5, 1, 0, 0], [0.5,-0.5, 2, 1, 0], [0.5, 0.5 , 2, 1, 1]]
-triangle2 = [[-0.5, -0.5, 1, 0, 0], [0.5, 0.5, 2, 1, 1], [-0.5, 0.5, 1, 0, 1]]
+translate = function(vertex, v3)
+    return [
+        vertex[0] + v3[0],
+        vertex[1] + v3[1],
+        vertex[2] + v3[2],
+        vertex[3],
+        vertex[4]]
+end function
 
-renderTriangle triangle2
-renderTriangle triangle
+rotateX = function(v, degrees)
+	radians = degrees * pi / 180
+	c = cos(radians)
+	s = sin(radians)
+
+	return [
+		v[0],
+		v[1] * c - v[2] * s,
+		v[1] * s + v[2] * c,
+		v[3],
+		v[4]]
+end function
+
+rotateY = function(v, degrees)
+	radians = degrees * pi / 180
+	c = cos(radians)
+	s = sin(radians)
+
+	return [
+		v[0] * c + v[2] * s,
+		v[1],
+		-v[0] * s + v[2] * c,
+        v[3],
+        v[4]]
+end function
+
+rotateZ = function(v, degrees)
+	radians = degrees * pi / 180
+	c = cos(radians)
+	s = sin(radians)
+
+    return [
+		v[0] * c - v[1] * s,
+		v[0] * s + v[1] * c,
+		v[2],
+		v[3],
+		v[4]]
+end function
+
+triangle1 = [[-0.5, -0.5, -0.5, 0, 0], [0.5,-0.5, -0.5, 1, 0], [0.5, 0.5 , -0.5, 1, 1]]
+triangle2 = [[-0.5, -0.5, -0.5, 0, 0], [0.5, 0.5, -0.5, 1, 1], [-0.5, 0.5, -0.5, 0, 1]]
+triangle3 = [[0.5, -0.5, -0.5, 0, 0], [0.5,-0.5, 0.5, 1, 0], [0.5, 0.5 , 0.5, 1, 1]]
+triangle4 = [[0.5, -0.5, -0.5, 0, 0], [0.5, 0.5, 0.5, 1, 1], [0.5, 0.5, -0.5, 0, 1]]
+triangle5 = [[-0.5, 0.5, -0.5, 0,0], [0.5, 0.5, -0.5, 1, 0], [0.5, 0.5, 0.5, 1, 1]]
+triangle6 = [[-0.5, 0.5, -0.5, 0,0], [0.5, 0.5, 0.5, 1, 1], [-0.5, 0.5, 0.5, 0, 1]]
+triangle7 = [[-0.5, -0.5, 0.5, 0, 0], [0.5, 0.5, 0.5, 1, 1], [0.5, -0.5, 0.5, 1, 0]]
+triangle8 = [[-0.5, -0.5, 0.5, 0, 0], [-0.5, 0.5, 0.5, 0, 1], [0.5, 0.5, 0.5, 1, 1]]
+triangle9 = [[-0.5, -0.5, -0.5, 0, 0], [-0.5, 0.5, 0.5, 1, 1], [-0.5, -0.5, 0.5, 1, 0]]
+triangle10 = [[-0.5, -0.5, -0.5, 0, 0], [-0.5, 0.5, -0.5, 0, 1], [-0.5, 0.5, 0.5, 1, 1]]
+triangle11 = [[-0.5, -0.5, -0.5, 0, 0],[0.5, -0.5, 0.5, 1, 1],[0.5, -0.5, -0.5, 1, 0]]
+triangle12 = [[-0.5, -0.5, -0.5, 0, 0], [-0.5, -0.5, 0.5, 0, 1], [0.5, -0.5, 0.5, 1, 1]]
+
+cube = [triangle1, triangle2, triangle3, triangle4, triangle5, triangle6, triangle7, triangle8, triangle9, triangle10, triangle11, triangle12]
+
+for tri in cube
+    transformed = []
+    for p in tri
+        rotated = rotateZ(p, 0)
+        rotated = rotateY(rotated, 40.89339465)
+        rotated = rotateX(rotated, -33)
+  
+        translated = translate(rotated, [0,0,2])
+        transformed.push translated
+    end for
+    renderTriangle transformed
+end for
