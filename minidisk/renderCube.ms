@@ -18,11 +18,6 @@ sunLen = sqrt(sunDirection[0] * sunDirection[0] + sunDirection[1] * sunDirection
 sunDirection = [sunDirection[0]/sunLen, sunDirection[1]/sunLen, sunDirection[2]/sunLen]
 ambient = [0.4, 0.4, 0.4, 0]
 
-
-drawPixel = function(position, color)
-    gfx.setPixel unitScale * (position[0] + offset[0]),unitScale * ( position[1] + offset[1]), color
-end function
-
 interpolate5 = function(alpha, beta, gamma, a, b, c)
     return [
         alpha * a[0] + beta * b[0] + gamma * c[0],
@@ -102,7 +97,7 @@ end function
 
 drawTrianglepoints = function(triangle, color)
     for point in triangle
-        drawPixel point, color
+        gfx.setPixel unitScale * (point[0] + offset[0]),unitScale * ( point[1] + offset[1]), color
     end for
 end function
 
