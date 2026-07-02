@@ -180,7 +180,7 @@ edgeTriangleFill = function(triangle, normal, col)
                         gfx.setPixel screen_x,screen_y, color.rgb(colList[0]*(lambert+ambient[0]), colList[1]*(lambert+ambient[1]), colList[2]*(lambert+ambient[2]))
                     else
                         uv = interpolateUV(alpha, beta, gamma, triangle[0], triangle[1], triangle[2])
-                        renderColor = sampleTexture(uv[0], uv[1], "textures/uvChecker.png")
+                        renderColor = sampleTexture(uv[0], uv[1], "/sys/pics/textures/ToonBrickA.png")
                         lambert = [0,normal.dot(sunDirection)].max
                         colList = color.toList(renderColor)
                         gfx.setPixel screen_x,screen_y, color.rgb(colList[0]*(lambert+ambient[0]), colList[1]*(lambert+ambient[1]), colList[2]*(lambert+ambient[2]))
